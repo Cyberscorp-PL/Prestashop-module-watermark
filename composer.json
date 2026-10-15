@@ -10,25 +10,11 @@
     }
   ],
   "require": {
-      "php": ">=5.6.0",
-      "prestashop/circuit-breaker": "^3.0.0",
-      "doctrine/cache": "^1.6",
-      "guzzlehttp/cache-subscriber": "dev-master",
-      "ext-gd": "*"
-  },
-  "autoload": {
-    "psr-4": {
-      "PrestaShop\\Module\\Watermark\\": "src/"
-    },
-    "classmap": ["watermark.php"],
-    "exclude-from-classmap": []
+    "php": ">=7.2.5"
   },
   "config": {
     "preferred-install": "dist",
-    "prepend-autoloader": false,
-    "platform": {
-      "php": "5.6"
-    }
+    "prepend-autoloader": false
   },
   "type": "prestashop-module"
 }

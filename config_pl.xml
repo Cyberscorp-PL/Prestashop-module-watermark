@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<module>
+    <name>watermark</name>
+    <displayName><![CDATA[Znak wodny]]></displayName>
+    <version><![CDATA[2.0.5]]></version>
+    <description><![CDATA[Chroń zdjęcia znakiem wodnym.]]></description>
+    <author><![CDATA[Cyberscorp]]></author>
+    <tab><![CDATA[administration]]></tab>
+	<confirmUninstall><![CDATA[Czy na pewno chcesz usunąć swoje dane?]]></confirmUninstall>
+    <is_configurable>1</is_configurable>
+    <need_instance>1</need_instance>
+</module>

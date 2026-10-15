@@ -28,12 +28,10 @@ if (!defined('_PS_VERSION_')) {
     exit;
 }
 
-use PrestaShop\Module\Watermark\Addons\CategoryFetcher;
-
 /**
  * Class Watermark
  */
-class Watermark extends Module
+class watermark extends Module
 {
     /** @var array $_postErrors */
     private $_postErrors = [];
@@ -66,14 +64,14 @@ class Watermark extends Module
     {
         $this->name = 'watermark';
         $this->tab = 'administration';
-        $this->version = '2.0.0';
-        $this->author = 'PrestaShop';
+        $this->version = '2.0.5';
+        $this->author = 'Cyberscorp';
 
         $this->bootstrap = true;
         parent::__construct();
 
         $this->displayName = $this->trans('Watermark', [], 'Modules.Watermark.Admin');
-        $this->description = $this->trans('Create a watermark to protect images on your store and make your website looks yours.', [], 'Modules.Watermark.Admin');
+        $this->description = $this->trans('Protect images by watermark.', [], 'Modules.Watermark.Admin');
         $this->confirmUninstall = $this->trans(
             'Are you sure you want to delete your details?',
             [],
@@ -110,7 +108,7 @@ class Watermark extends Module
             Configuration::updateValue('WATERMARK_HASH', Tools::passwdGen(10));
         }
 
-        $this->resize = isset($config['WATERMARK_RESIZE']) ? (int) $config['WATERMARK_RESIZE'] : 50;
+        $this->resize = isset($config['WATERMARK_RESIZE']) ? $config['WATERMARK_RESIZE'] : 50;
 
         if (!isset($this->transparency, $this->xAlign, $this->yAlign)) {
             $this->warning = $this->trans(
@@ -185,8 +183,8 @@ class Watermark extends Module
         $types = ImageType::getImagesTypes('products');
         $idImageType = [];
         foreach ($types as $type) {
-            if (null !== Tools::getValue('WATERMARK_TYPES_' . (int) $type['id_image_type'])) {
-                $idImageType['WATERMARK_TYPES_' . (int) $type['id_image_type']] = true;
+            if (Tools::getValue('WATERMARK_TYPES_' . (int)$type['id_image_type'])) {
+                $idImageType['WATERMARK_TYPES_' . (int)$type['id_image_type']] = true;
             }
         }
 
@@ -199,7 +197,7 @@ class Watermark extends Module
         if (empty($resize)) {
             $this->_postErrors[] = $this->trans('Resize required.', [], 'Modules.Watermark.Admin');
         } elseif ($resize < 1 || $resize > 100) {
-            $this->_postErrors[] = $this->trans('Resize value not in the range (1 - 100).', [], 'Modules.Watermark.Admin');
+            $this->_postErrors[] = $this->trans('Resize not allowed range.', [], 'Modules.Watermark.Admin');
         }
 
         if (empty($yalign)) {
@@ -221,9 +219,9 @@ class Watermark extends Module
             if (!ImageManager::isRealImage(
                 $_FILES['PS_WATERMARK']['tmp_name'],
                 $_FILES['PS_WATERMARK']['type'],
-                ['image/gif', 'image/jpeg', 'image/jpg', 'image/png']
+                ['image/gif', 'image/jpeg', 'image/jpg', 'image/png', 'image/webp']
             )) {
-                $this->_postErrors[] = $this->trans('Allowed image formats are: .gif, .jpg, .png', [], 'Admin.Global');
+                $this->_postErrors[] = $this->trans('Allowed image formats are: .gif, .jpg, .png, .webp', [], 'Admin.Global');
             }
         }
 
@@ -239,7 +237,7 @@ class Watermark extends Module
         $types = ImageType::getImagesTypes('products');
         $idImageType = [];
         foreach ($types as $type) {
-            if (Tools::getValue('WATERMARK_TYPES_' . (int) $type['id_image_type'])) {
+            if (Tools::getValue('WATERMARK_TYPES_' . (int)$type['id_image_type'])) {
                 $idImageType[] = $type['id_image_type'];
             }
         }
@@ -252,7 +250,7 @@ class Watermark extends Module
         Configuration::updateValue('WATERMARK_LOGGED', Tools::getValue('WATERMARK_LOGGED'));
 
         if (Shop::getContext() === Shop::CONTEXT_SHOP) {
-            $strShop = '-' . (int) $this->context->shop->id;
+            $strShop = '-' . (int)$this->context->shop->id;
         } else {
             $strShop = '';
         }
@@ -343,27 +341,49 @@ class Watermark extends Module
      *
      * @return boolean
      */
-    public function writeHtaccessSection()
-    {
-        $adminDir = $this->getAdminDir();
-        $source = "\n# start ~ module watermark section
-<IfModule mod_rewrite.c>
-RewriteEngine On
-RewriteCond expr \"! %{HTTP_REFERER} -strmatch '*://%{HTTP_HOST}*/$adminDir/*'\"
-RewriteRule [0-9/]+/[0-9]+\\.jpg$ - [F]
-</IfModule>
-# end ~ module watermark section\n";
+			public function writeHtaccessSection()
+			{
+					$adminDir = $this->getAdminDir();
+					
+					// 1. Przygotowujemy regu³y (dodane flagi [F,L] - Forbidden i Last)
+					$source = "\n# start ~ module watermark section
+			<IfModule mod_rewrite.c>
+			Options +FollowSymLinks
+			RewriteEngine On
+			RewriteCond expr \"! %{HTTP_REFERER} -strmatch '*://%{HTTP_HOST}*/$adminDir/*'\"
+			RewriteRule [0-9/]+/[0-9]+\\.(jpg|png|webp)$ - [F,L]
+			</IfModule>
+			# end ~ module watermark section\n";
 
-        $path = _PS_ROOT_DIR_ . '/.htaccess';
+					$path = _PS_ROOT_DIR_ . '/.htaccess';
 
-        if (false === file_put_contents($path, $source . file_get_contents($path))) {
-            $this->context->controller->errors[] = $this->trans('Unable to add watermark section to the .htaccess file', [], 'Modules.Watermark.Admin');
+					if (file_exists($path) && is_writable($path)) {
+							$content = file_get_contents($path);
+							
+							// 2. Bezpieczeñstwo: Jeœli sekcja jakimœ cudem ju¿ tam jest, najpierw j¹ usuwamy, 
+							// aby unikn¹æ duplikowania kodu w pliku .htaccess
+							if (strpos($content, '# start ~ module watermark section') !== false) {
+									$content = preg_replace('/# start ~ module watermark section.*# end ~ module watermark section\n*/s', '', $content);
+							}
 
-            return false;
-        }
+							// 3. Zapisujemy ca³y plik z doklejon¹ na koñcu sekcj¹ (BEZ FILE_APPEND)
+							if (false !== file_put_contents($path, $content . $source)) {
+									return true;
+							}
+					}
 
-        return true;
-    }
+					// 4. Bezpieczna obs³uga b³êdów, która nie wy³o¿y kontrolera w tle
+					if (isset($this->context->controller) && property_exists($this->context->controller, 'errors')) {
+							$this->context->controller->errors[] = $this->trans(
+									'Unable to add watermark section to the .htaccess file',
+									[],
+									'Modules.Watermark.Admin'
+							);
+					}
+
+					return false;
+			}
+
 
     /**
      * @return string
@@ -390,8 +410,6 @@ RewriteRule [0-9/]+/[0-9]+\\.jpg$ - [F]
             }
         }
         $html .= $this->renderForm();
-        $this->context->controller->addCSS(__DIR__ . '/views/css/module-addons-suggestion.css');
-        $html .= $this->renderAddonsSuggestion();
 
         return $html;
     }
@@ -405,17 +423,21 @@ RewriteRule [0-9/]+/[0-9]+\\.jpg$ - [F]
     {
         $image = new Image($params['id_image']);
         $image->id_product = $params['id_product'];
-        $file = _PS_PROD_IMG_DIR_ . $image->getExistingImgPath() . '-watermark.jpg';
-        $file_org = _PS_PROD_IMG_DIR_ . $image->getExistingImgPath() . '.jpg';
+        $base = _PS_PROD_IMG_DIR_ . $image->getExistingImgPath();
+
+        // The original is normally a .jpg, but .png / .webp originals are supported too.
+        $sourceExt = $this->findOriginalExtension($base);
+        $file_org = $base . '.' . $sourceExt;
+        $file = $base . '-watermark.' . $sourceExt;
 
         $strShop = '-' . (int)$this->context->shop->id;
-        if (Shop::getContext() !== Shop::CONTEXT_SHOP || !Tools::file_exists_cache(__DIR__ . '/views/img/' . $this->name . $strShop . '.' . $this->getWatermarkExtension($strShop))) {
+        if (Shop::getContext() !== Shop::CONTEXT_SHOP || !is_file(__DIR__ . '/views/img/' . $this->name . $strShop . '.' . $this->getWatermarkExtension($strShop))) {
             $strShop = '';
         }
 
         // First make a watermark image
         $return = $this->watermarkByImage(
-            _PS_PROD_IMG_DIR_ . $image->getExistingImgPath() . '.jpg',
+            $file_org,
             __DIR__ . '/views/img/' . $this->name . $strShop . '.' . $this->getWatermarkExtension($strShop),
             $file
         );
@@ -424,24 +446,76 @@ RewriteRule [0-9/]+/[0-9]+\\.jpg$ - [F]
             Configuration::updateValue('WATERMARK_HASH', Tools::passwdGen(10));
         }
 
+        $imageTypes = $this->imageTypes;
         if (isset($params['image_type']) && is_array($params['image_type'])) {
-            $this->imageTypes = array_intersect($this->imageTypes, $params['image_type']);
+            // $imageTypes holds arrays, so compare by type name/id instead of array_intersect()
+            // (which would cast arrays to string and raise "Array to string conversion").
+            $wanted = array_map('strval', $params['image_type']);
+            $imageTypes = array_values(array_filter($imageTypes, function ($type) use ($wanted) {
+                return in_array((string)$type['name'], $wanted, true)
+                    || in_array((string)$type['id_image_type'], $wanted, true);
+            }));
         }
 
-        //go through file formats defined for watermark and resize them
-        foreach ($this->imageTypes as $imageType) {
-            $newFile = _PS_PROD_IMG_DIR_ . $image->getExistingImgPath() . '-' . Tools::stripslashes($imageType['name']) . '.jpg';
-            if (!ImageManager::resize($file, $newFile, (int) $imageType['width'], (int) $imageType['height'])) {
-                $return = false;
-            }
+        $formats = $this->getGenerationFormats();
 
-            $newFileOrg = _PS_PROD_IMG_DIR_ . $image->getExistingImgPath() . '-' . Tools::stripslashes($imageType['name']) . '-' . Configuration::get('WATERMARK_HASH') . '.jpg';
-            if (!ImageManager::resize($file_org, $newFileOrg, (int) $imageType['width'], (int) $imageType['height'])) {
-                $return = false;
+        //go through file formats defined for watermark and resize them (once per generated format: jpg, png, webp)
+        foreach ($imageTypes as $imageType) {
+            $name = Tools::stripslashes($imageType['name']);
+            foreach ($formats as $format) {
+                $newFile = $base . '-' . $name . '.' . $format;
+                if (!ImageManager::resize($file, $newFile, (int)$imageType['width'], (int)$imageType['height'], $format)) {
+                    $return = false;
+                }
+
+                $newFileOrg = $base . '-' . $name . '-' . Configuration::get('WATERMARK_HASH') . '.' . $format;
+                if (!ImageManager::resize($file_org, $newFileOrg, (int)$imageType['width'], (int)$imageType['height'], $format)) {
+                    $return = false;
+                }
             }
         }
 
         return $return;
+    }
+
+    /**
+     * Extension of the original product image (jpg by default; jpeg / png / webp when only such a file exists).
+     *
+     * @param string $base Path of the image without extension
+     *
+     * @return string
+     */
+    private function findOriginalExtension($base)
+    {
+        foreach (['jpg', 'jpeg', 'png', 'webp'] as $extension) {
+            if (is_file($base . '.' . $extension)) {
+                return $extension;
+            }
+        }
+
+        return 'jpg';
+    }
+
+    /**
+     * Thumbnail formats the shop generates: always jpg, plus png / webp when enabled in
+     * Design > Image Settings (PS_IMAGE_FORMAT, PrestaShop 8.1+). Only formats this PHP can write are returned.
+     *
+     * @return string[]
+     */
+    private function getGenerationFormats()
+    {
+        $formats = ['jpg'];
+        $configured = (string)Configuration::get('PS_IMAGE_FORMAT');
+        foreach (explode(',', $configured) as $format) {
+            $format = trim(Tools::strtolower($format));
+            if ($format === 'png' && function_exists('imagepng') && !in_array($format, $formats, true)) {
+                $formats[] = $format;
+            } elseif ($format === 'webp' && function_exists('imagewebp') && !in_array($format, $formats, true)) {
+                $formats[] = $format;
+            }
+        }
+
+        return $formats;
     }
 
     private function resizeWatermark($originalFile)
@@ -450,8 +524,8 @@ RewriteRule [0-9/]+/[0-9]+\\.jpg$ - [F]
 
         $width = imagesx($originalFile);
         $height = imagesy($originalFile);
-        $newWidth = $width * $resize;
-        $newHeight = ($height / $width) * $newWidth;
+        $newWidth = max(1, (int)round($width * $resize));
+        $newHeight = max(1, (int)round(($height / $width) * $newWidth));
 
         return [$newWidth, $newHeight];
     }
@@ -473,7 +547,12 @@ RewriteRule [0-9/]+/[0-9]+\\.jpg$ - [F]
             $watermarkExtension = 'jpg';
         }
 
-        $type = getimagesize($imagepath)[2];
+        $imageInfo = is_file($imagepath) ? @getimagesize($imagepath) : false;
+        $watermarkInfo = is_file($watermarkpath) ? @getimagesize($watermarkpath) : false;
+        if (!$imageInfo || !$watermarkInfo) {
+            return false;
+        }
+        $type = $imageInfo[2];
 
         $image = ImageManager::create($type, $imagepath);
         if (!$image) {
@@ -483,7 +562,7 @@ RewriteRule [0-9/]+/[0-9]+\\.jpg$ - [F]
         $imagew = ImageManager::create(static::convertExtensionToImageType($watermarkExtension), $watermarkpath);
         if (!$imagew) {
             $this->context->controller->errors[] = $this->trans(
-                'Watermark image format is unsupported, allowed file types are: .gif, .jpg, .png',
+                'Watermark image format is unsupported, allowed file types are: .gif, .jpg, .png, .webp',
                 [],
                 'Modules.Watermark.Admin'
             );
@@ -491,12 +570,12 @@ RewriteRule [0-9/]+/[0-9]+\\.jpg$ - [F]
             return false;
         }
 
-        list($imageWidth, $imageHeight) = getimagesize($imagepath);
-        list($w_width, $w_height) = getimagesize($watermarkpath);
+        [$imageWidth, $imageHeight] = $imageInfo;
+        [$w_width, $w_height] = $watermarkInfo;
 
         $watermarkSize = $this->resizeWatermark($imagew);
 
-        $watermark = imagecreatetruecolor($watermarkSize[0], $watermarkSize[1]);
+        $watermark = imagecreatetruecolor($watermarkSize[0], $watermarkSize[1]); // integers, see resizeWatermark()
 
         // integer representation of the color black (rgb: 0,0,0)
         $background = imagecolorallocate($watermark, 0, 0, 0);
@@ -510,22 +589,22 @@ RewriteRule [0-9/]+/[0-9]+\\.jpg$ - [F]
         $watermarkHeight = imagesy($watermark);
 
         if ($this->xAlign === 'middle') {
-            $xpos = $imageWidth / 2 - $watermarkWidth / 2 + $Xoffset;
+            $xpos = (int)round($imageWidth / 2 - $watermarkWidth / 2 + $Xoffset);
         }
         if ($this->xAlign === 'left') {
             $xpos = 0 + $Xoffset;
         }
         if ($this->xAlign === 'right') {
-            $xpos = $imageWidth - $watermarkWidth - $Xoffset;
+            $xpos = (int)($imageWidth - $watermarkWidth - $Xoffset);
         }
         if ($this->yAlign === 'middle') {
-            $ypos = $imageHeight / 2 - $watermarkHeight / 2 + $Yoffset;
+            $ypos = (int)round($imageHeight / 2 - $watermarkHeight / 2 + $Yoffset);
         }
         if ($this->yAlign === 'top') {
             $ypos = 0 + $Yoffset;
         }
         if ($this->yAlign === 'bottom') {
-            $ypos = $imageHeight - $watermarkHeight - $Yoffset;
+            $ypos = (int)($imageHeight - $watermarkHeight - $Yoffset);
         }
         if (!$this->imagecopymerge_alpha(
             $image,
@@ -536,7 +615,7 @@ RewriteRule [0-9/]+/[0-9]+\\.jpg$ - [F]
             0,
             $watermarkWidth,
             $watermarkHeight,
-            $this->transparency,
+            (int)$this->transparency,
             $watermarkExtension
         )) {
             return false;
@@ -585,7 +664,7 @@ RewriteRule [0-9/]+/[0-9]+\\.jpg$ - [F]
                         'type' => 'file',
                         'label' => $this->trans('Watermark file:', [], 'Modules.Watermark.Admin'),
                         'name' => 'PS_WATERMARK',
-                        'desc' => $this->trans('Allowed image formats are: .gif, .jpg, .png', [], 'Admin.Global'),
+                        'desc' => $this->trans('Allowed image formats are: .gif, .jpg, .png, .webp', [], 'Admin.Global'),
                         'thumb' => "{$this->_path}views/img/{$this->name}{$strShop}.{$imageExt}?t=" . rand(0, time()),
                     ],
                     [
@@ -695,15 +774,15 @@ RewriteRule [0-9/]+/[0-9]+\\.jpg$ - [F]
         $helper = new HelperForm();
         $helper->show_toolbar = false;
         $helper->table = $this->table;
-        $lang = new Language((int) Configuration::get('PS_LANG_DEFAULT'));
+        $lang = new Language((int)Configuration::get('PS_LANG_DEFAULT'));
         $helper->default_form_language = $lang->id;
         $helper->allow_employee_form_lang = Configuration::get('PS_BO_ALLOW_EMPLOYEE_FORM_LANG') ? Configuration::get('PS_BO_ALLOW_EMPLOYEE_FORM_LANG') : 0;
         $helper->identifier = $this->identifier;
         $helper->submit_action = 'btnSubmit';
         $helper->currentIndex = $this->context->link->getAdminLink(
-                'AdminModules',
-                false
-            ) . '&configure=' . $this->name . '&tab_module=' . $this->tab . '&module_name=' . $this->name;
+            'AdminModules',
+            false
+        ) . '&configure=' . $this->name . '&tab_module=' . $this->tab . '&module_name=' . $this->name;
         $helper->token = Tools::getAdminTokenLite('AdminModules');
         $helper->tpl_vars = [
             'fields_value' => $this->getConfigFieldsValues(),
@@ -712,29 +791,6 @@ RewriteRule [0-9/]+/[0-9]+\\.jpg$ - [F]
         ];
 
         return $helper->generateForm([$fieldsForm]);
-    }
-
-    /**
-     * @return string
-     *
-     * @throws SmartyException
-     */
-    public function renderAddonsSuggestion()
-    {
-        $categoryFetcher = new CategoryFetcher(
-            465,
-            [
-                'name' => 'Labels & Logos',
-                'link' => '/en/465-labels-logos',
-                'description' => '<h2>Reassure your customers, encourage them to make purchases and make it easier to browse on your e-commerce website by adding badges to your product pages!</h2>For example, you can add â€œFree deliveryâ€, â€œ-30%â€, â€œNewâ€, â€œLast articles in stockâ€ or â€œNo. 1 selling productâ€ badges to make your products more visible and ensure they stand out. Also propose badges indicating the composition (100% cotton, 100% organic etc.) or even  icons highlighting each product\'s strengths. You can therefore personalize your store in just a few clicks.',
-            ]
-        );
-        $category = $categoryFetcher->getData($this->context->language->iso_code);
-        $this->context->smarty->assign([
-            'addons_category' => $category,
-        ]);
-
-        return $this->context->smarty->fetch('module:watermark/views/templates/admin/addons-suggestion.tpl');
     }
 
     /**
@@ -762,8 +818,8 @@ RewriteRule [0-9/]+/[0-9]+\\.jpg$ - [F]
         //get images type from $_POST
         $idImageTypePost = [];
         foreach ($idImageType as $id) {
-            if (Tools::getValue('WATERMARK_TYPES_' . (int) $id)) {
-                $idImageTypePost['WATERMARK_TYPES_' . (int) $id] = true;
+            if (Tools::getValue('WATERMARK_TYPES_' . (int)$id)) {
+                $idImageTypePost['WATERMARK_TYPES_' . (int)$id] = true;
             }
         }
 
@@ -776,7 +832,7 @@ RewriteRule [0-9/]+/[0-9]+\\.jpg$ - [F]
         }
 
         foreach ($confs as $conf) {
-            $idImageTypeConfig['WATERMARK_TYPES_' . (int) $conf] = true;
+            $idImageTypeConfig['WATERMARK_TYPES_' . (int)$conf] = true;
         }
 
         //return only common values and value from post
@@ -798,7 +854,8 @@ RewriteRule [0-9/]+/[0-9]+\\.jpg$ - [F]
      */
     private function deleteOldWatermark($strShop)
     {
-        foreach (['.jpg', '.gif', '.png'] as $extension) {
+        $this->extensionCache = [];
+        foreach (['.jpg', '.gif', '.png', '.webp'] as $extension) {
             @unlink(__DIR__ . '/views/img/' . $this->name . $strShop . $extension);
         }
     }
@@ -820,7 +877,7 @@ RewriteRule [0-9/]+/[0-9]+\\.jpg$ - [F]
         }
         // Probe image file
         $imageExt = 'gif';
-        foreach (['png', 'jpg'] as $extension) {
+        foreach (['png', 'webp', 'jpg'] as $extension) {
             if (file_exists(sprintf('%s/views/img/watermark%s.%s', __DIR__, $strShop, $extension))) {
                 $imageExt = $extension;
                 break;
@@ -861,7 +918,7 @@ RewriteRule [0-9/]+/[0-9]+\\.jpg$ - [F]
         $pct,
         $watermarkExtension
     ) {
-        if ($watermarkExtension === 'png') { // Needed for PNG-24 with transparency
+        if ($watermarkExtension === 'png' || $watermarkExtension === 'webp') { // Needed for alpha transparency
             $cut = imagecreatetruecolor($src_w, $src_h);
             imagecopy($cut, $dst_im, 0, 0, $dst_x, $dst_y, $src_w, $src_h);
             imagecopy($cut, $src_im, 0, 0, $src_x, $src_y, $src_w, $src_h);
@@ -888,6 +945,7 @@ RewriteRule [0-9/]+/[0-9]+\\.jpg$ - [F]
             'jpeg' => IMAGETYPE_JPEG,
             'gif' => IMAGETYPE_GIF,
             'png' => IMAGETYPE_PNG,
+            'webp' => defined('IMAGETYPE_WEBP') ? IMAGETYPE_WEBP : 18,
         ];
         if (!array_key_exists(Tools::strtolower($extension), $imageTypes)) {
             return IMAGETYPE_GIF;

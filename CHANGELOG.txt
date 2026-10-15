@@ -1,3 +1,16 @@
+2026-10-15	2.0.3	- New: .png and .webp watermark files can be uploaded
+		- New: .png / .webp original images are watermarked (output keeps the source format)
+		- New: thumbnails are generated in every format enabled in Image Settings (jpg, png, webp)
+		- Change: .htaccess rule also protects png / webp originals (refreshed on upgrade)
+		- New: .jpeg originals are detected too
+
+2026-10-15	2.0.2	- Fix: array_intersect() on image type arrays ("Array to string conversion"; image_type filter now matches by name/id)
+		- Fix: removed Tools::file_exists_cache() (not guaranteed in PrestaShop 9); static review for PHP 8.5
+
+2026-10-14	2.0.1	- Fix: ClassNotFoundError CategoryFetcher in module configuration (composer vendor/ was not shipped); Addons suggestion banner removed
+		- Fix: PHP 8.1+ deprecations (float to int) when applying the watermark; guards for missing image files
+		- Fix: "at least one image type" validation
+		- Added protected empty vendor/ folder
 2014-03-28 15:53:33 +0100	// MO watermark : min ps_versions_compliancy deleted (Bug with PS 1.5.3.1)
 2014-03-27 17:36:45 +0100	// MO : max ps_versions_compliancy modified
 2014-03-27 17:31:54 +0100	/ MO  : min ps_versions_compliancy modified

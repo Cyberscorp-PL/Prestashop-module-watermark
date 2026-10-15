@@ -1,14 +1,8 @@
 # Watermark
 
-**This module has been archived, it’s no longer maintained but you still can fork it if you need it for your shop.**
-
 ## About
 
-Create a watermark to protect images on your store and make your website looks yours.
-
-## Multistore compatibility
-
-This module is partially compatible with the multistore feature. Some of its options might not be available.
+Protect image by watermark.
 
 ## Contributing
 
