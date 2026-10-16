@@ -1,3 +1,7 @@
+2026-10-15	2.1.0	- New: PrestaShop translation system (XLF, domain Modules.Watermark.Admin) for EN, PL, DE, IT, FR, ES
+		- New: module icon (logo.png / logo.gif); author changed to Cyberscorp
+		- Change: "Allowed image formats" messages moved to the module translation domain
+
 2026-10-15	2.0.3	- New: .png and .webp watermark files can be uploaded
 		- New: .png / .webp original images are watermarked (output keeps the source format)
 		- New: thumbnails are generated in every format enabled in Image Settings (jpg, png, webp)

@@ -19,6 +19,7 @@
  * needs please refer to https://www.prestashop.com for more information.
  *
  * @author    PrestaShop SA <contact@prestashop.com>
+ * @author    Cyberscorp (maintenance and modifications from version 2.0.1)
  * @copyright 2007-2019 PrestaShop SA and Contributors
  * @license   https://opensource.org/licenses/OSL-3.0 Open Software License (OSL 3.0)
  * International Registered Trademark & Property of PrestaShop SA
@@ -60,11 +61,17 @@ class watermark extends Module
      * @throws PrestaShopDatabaseException
      * @throws PrestaShopException
      */
+    /** Opt in to the PrestaShop 1.7.6+/8/9 translation system (XLF files in translations/<locale>/). */
+    public function isUsingNewTranslationSystem()
+    {
+        return true;
+    }
+
     public function __construct()
     {
         $this->name = 'watermark';
         $this->tab = 'administration';
-        $this->version = '2.0.5';
+        $this->version = '2.1.0';
         $this->author = 'Cyberscorp';
 
         $this->bootstrap = true;
@@ -221,7 +228,7 @@ class watermark extends Module
                 $_FILES['PS_WATERMARK']['type'],
                 ['image/gif', 'image/jpeg', 'image/jpg', 'image/png', 'image/webp']
             )) {
-                $this->_postErrors[] = $this->trans('Allowed image formats are: .gif, .jpg, .png, .webp', [], 'Admin.Global');
+                $this->_postErrors[] = $this->trans('Allowed image formats are: .gif, .jpg, .png, .webp', [], 'Modules.Watermark.Admin');
             }
         }
 
@@ -341,49 +348,31 @@ class watermark extends Module
      *
      * @return boolean
      */
-			public function writeHtaccessSection()
-			{
-					$adminDir = $this->getAdminDir();
-					
-					// 1. Przygotowujemy regu³y (dodane flagi [F,L] - Forbidden i Last)
-					$source = "\n# start ~ module watermark section
-			<IfModule mod_rewrite.c>
-			Options +FollowSymLinks
-			RewriteEngine On
-			RewriteCond expr \"! %{HTTP_REFERER} -strmatch '*://%{HTTP_HOST}*/$adminDir/*'\"
-			RewriteRule [0-9/]+/[0-9]+\\.(jpg|png|webp)$ - [F,L]
-			</IfModule>
-			# end ~ module watermark section\n";
+    public function writeHtaccessSection()
+    {
+        $adminDir = $this->getAdminDir();
+        $source = "\n# start ~ module watermark section
+<IfModule mod_rewrite.c>
+Options +FollowSymLinks
+RewriteEngine On
+RewriteCond expr \"! %{HTTP_REFERER} -strmatch '*://%{HTTP_HOST}*/$adminDir/*'\"
+RewriteRule [0-9/]+/[0-9]+\\.(jpg|png|webp)$ - [F]
+</IfModule>
+# end ~ module watermark section\n";
 
-					$path = _PS_ROOT_DIR_ . '/.htaccess';
+        $path = _PS_ROOT_DIR_ . '/.htaccess';
+        if (false === file_put_contents($path, $source, FILE_APPEND)) {
+            $this->context->controller->errors[] = $this->trans(
+                'Unable to add watermark section to the .htaccess file',
+                [],
+                'Modules.Watermark.Admin'
+            );
 
-					if (file_exists($path) && is_writable($path)) {
-							$content = file_get_contents($path);
-							
-							// 2. Bezpieczeñstwo: Jeœli sekcja jakimœ cudem ju¿ tam jest, najpierw j¹ usuwamy, 
-							// aby unikn¹æ duplikowania kodu w pliku .htaccess
-							if (strpos($content, '# start ~ module watermark section') !== false) {
-									$content = preg_replace('/# start ~ module watermark section.*# end ~ module watermark section\n*/s', '', $content);
-							}
+            return false;
+        }
 
-							// 3. Zapisujemy ca³y plik z doklejon¹ na koñcu sekcj¹ (BEZ FILE_APPEND)
-							if (false !== file_put_contents($path, $content . $source)) {
-									return true;
-							}
-					}
-
-					// 4. Bezpieczna obs³uga b³êdów, która nie wy³o¿y kontrolera w tle
-					if (isset($this->context->controller) && property_exists($this->context->controller, 'errors')) {
-							$this->context->controller->errors[] = $this->trans(
-									'Unable to add watermark section to the .htaccess file',
-									[],
-									'Modules.Watermark.Admin'
-							);
-					}
-
-					return false;
-			}
-
+        return true;
+    }
 
     /**
      * @return string
@@ -664,7 +653,7 @@ class watermark extends Module
                         'type' => 'file',
                         'label' => $this->trans('Watermark file:', [], 'Modules.Watermark.Admin'),
                         'name' => 'PS_WATERMARK',
-                        'desc' => $this->trans('Allowed image formats are: .gif, .jpg, .png, .webp', [], 'Admin.Global'),
+                        'desc' => $this->trans('Allowed image formats are: .gif, .jpg, .png, .webp', [], 'Modules.Watermark.Admin'),
                         'thumb' => "{$this->_path}views/img/{$this->name}{$strShop}.{$imageExt}?t=" . rand(0, time()),
                     ],
                     [

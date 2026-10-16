@@ -2,7 +2,7 @@
 <module>
     <name>watermark</name>
     <displayName><![CDATA[Znak wodny]]></displayName>
-    <version><![CDATA[2.0.5]]></version>
+    <version><![CDATA[2.1.0]]></version>
     <description><![CDATA[Chroń zdjęcia znakiem wodnym.]]></description>
     <author><![CDATA[Cyberscorp]]></author>
     <tab><![CDATA[administration]]></tab>

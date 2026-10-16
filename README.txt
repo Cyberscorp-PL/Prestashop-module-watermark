@@ -1,9 +1,19 @@
-Watermark – lista zmian od wersji 2.0.0 (Cyberscorp)
+Watermark 2.1.0 – lista zmian od wersji 2.0.0 (Cyberscorp)
 =====================================================
 
 Moduł bazowy: PrestaShop "watermark" 2.0.0. Poniżej zmiany wprowadzone w kolejnych wersjach.
 Wymagania: PrestaShop 1.7.6+ (testowane pod kątem 8.2, przegląd statyczny pod 9), PHP 7.2.5+ do 8.5, rozszerzenie GD.
 
+
+Wersja 2.1.0 (2026-10-15)
+-------------------------
+- Nowość: obsługa systemu tłumaczeń PrestaShop (pliki XLF w translations/<język>/ModulesWatermarkAdmin.<język>.xlf,
+  domena Modules.Watermark.Admin) dla języków: angielski (EN), polski (PL), niemiecki (DE), włoski (IT),
+  francuski (FR) i hiszpański (ES). Teksty ogólne (Włączone/Wyłączone, Zapisz, Lewo/Prawo...) tłumaczy rdzeń PrestaShop.
+  Tłumaczenia można edytować w: Międzynarodowe > Tłumaczenia.
+- Nowość: ikona modułu (logo.png i logo.gif).
+- Zmiana: autor modułu - Cyberscorp (informacja o oryginalnym autorze PrestaShop SA i licencji pozostaje w nagłówkach plików).
+- Zmiana: komunikaty "Allowed image formats..." przeniesione do domeny tłumaczeń modułu (wcześniej Admin.Global).
 
 Wersja 2.0.3 (2026-10-15)
 -------------------------
